@@ -52,52 +52,76 @@ def draw_bounding_boxes(image, bboxes, average_height, average_width):
     return image
 
 def get_dataset_filename(original_pdf_filename, page_num):
-    base_filename = os.path.splitext(os.path.basename(original_pdf_filename))[0]
-    return f"{base_filename}_{page_num}"
+   """Generate filename for dataset files using just the page number."""
+   return f"{page_num}" # Will be appended with .html or .boxes by the calling function
 
-def process_pdf(input_pdf, output_txt, craft_word_model, model, processor, det_model, det_processor, table_model, table_processor, order_model, order_processor, chunk_num, chunk_size, is_dataset_mode=False, input_dir=None, original_pdf_filename=None):
-    # Ensure necessary folders exist
+def process_page_craft(args):
+    """Process a single page with CRAFT. Separate function for multiprocessing."""
+    chunk_page_num, page_num, page_folder, scaled_img, craft_word_model = args
+    try:
+        polygons = craft_word_model.get_polygons(scaled_img)
+        craft_bboxes = [polygon_to_bbox(polygon) for polygon in polygons]
+        
+        heights = [calculate_bbox_height(bbox) for bbox in craft_bboxes]
+        widths = [calculate_bbox_width(bbox) for bbox in craft_bboxes]
+        average_height = sum(heights) / len(heights) if len(heights) > 0 else 0
+        average_width = sum(widths) / len(widths) if len(widths) > 0 else 0
+        
+        denoised_image = np.ones((scaled_img.shape[0], scaled_img.shape[1] * 2, 3), dtype=np.uint8) * 255
+        denoised_image = draw_bounding_boxes(denoised_image, craft_bboxes, average_height, average_width)
+        
+        denoised_path = os.path.join(page_folder, 'denoised.png')
+        cv2.imwrite(denoised_path, denoised_image)
+        
+        return chunk_page_num, craft_bboxes
+    except Exception as e:
+        print(f"Error running CRAFT on page {page_num + 1}: {str(e)}")
+        return chunk_page_num, []
+
+def process_pdf(input_pdf, output_txt, craft_word_model, model, processor, det_model, det_processor, 
+             table_model, table_processor, order_model, order_processor, chunk_num, chunk_size, 
+             max_pages, is_dataset_mode=False, input_dir=None, original_pdf_filename=None):
+    """
+    Process a chunk of a PDF file with parallel CRAFT processing based on chunk_size.
+    """
+    # Ensure necessary folders exist in working directory
+    working_dir = os.getcwd()
     ensure_folders_exist()
 
-    # Create the path to the "partitions" folder
-    partitions_dir = os.path.join(os.getcwd(), "partitions")
+    # Create and clean the working directories for this chunk
+    partitions_dir = os.path.join(working_dir, "partitions")
+    regionimages_dir = os.path.join(working_dir, "regionimages")
 
-    # Clean up partitions directory
+    # Clean working directories
     for subfolder in os.listdir(partitions_dir):
         subfolder_path = os.path.join(partitions_dir, subfolder)
         if os.path.isdir(subfolder_path):
             shutil.rmtree(subfolder_path)
 
-    # Clean up regionimages directory
-    regionimages_dir = os.path.join(os.getcwd(), "regionimages")
     for file in os.listdir(regionimages_dir):
         file_path = os.path.join(regionimages_dir, file)
         if os.path.isfile(file_path):
             os.remove(file_path)
 
-    # Get the base name and title of the PDF
-    pdf_base_name = os.path.basename(input_pdf)
-    pdf_title = os.path.splitext(pdf_base_name)[0]
+    import torch.multiprocessing as mp
+    from tqdm import tqdm
 
-    # Open the input PDF file
+    # Calculate page range for this chunk
     doc = fitz.open(input_pdf)
-    total_pages = doc.page_count
-    start_page_num = (chunk_num - 1) * chunk_size + 1
-
-    partitions_folder = 'partitions'
-    create_folder(partitions_folder)
-
-    all_craft_bboxes = []
-
-    for page_num in tqdm(range(total_pages), desc='Processing Pages'):
-        page_folder = os.path.join(partitions_folder, f'{page_num:04d}')
+    start_page = (chunk_num - 1) * chunk_size
+    end_page = min(start_page + chunk_size, min(doc.page_count, max_pages))
+    pages_in_chunk = range(start_page, end_page)
+    
+    # Prepare all pages first
+    page_data = []
+    for chunk_page_num, page_num in enumerate(pages_in_chunk):
+        page_folder = os.path.join(partitions_dir, f'{chunk_page_num:04d}')
         create_folder(page_folder)
 
         page = doc.load_page(page_num)
         zoom_factor = 4
         zoom_mat = fitz.Matrix(zoom_factor, zoom_factor)
         zoomed_pix = page.get_pixmap(matrix=zoom_mat)
-        zoomed_height = zoomed_pix.height
 
         zoomed_img = cv2.cvtColor(
             np.frombuffer(zoomed_pix.samples, np.uint8).reshape(
@@ -112,39 +136,36 @@ def process_pdf(input_pdf, output_txt, craft_word_model, model, processor, det_m
 
         raw_path = os.path.join(page_folder, 'raw.png')
         cv2.imwrite(raw_path, scaled_img)
-        absolute_raw_path = os.path.abspath(raw_path)
-
-        try:
-            polygons = craft_word_model.get_polygons(scaled_img)
-            craft_bboxes = [polygon_to_bbox(polygon) for polygon in polygons]
-            all_craft_bboxes.append(craft_bboxes)
-            
-            heights = [calculate_bbox_height(bbox) for bbox in craft_bboxes]
-            widths = [calculate_bbox_width(bbox) for bbox in craft_bboxes]
-            average_height = sum(heights) / len(heights) if len(heights) > 0 else 0
-            average_width = sum(widths) / len(widths) if len(widths) > 0 else 0
-            
-            denoised_image = np.ones((scaled_img.shape[0], scaled_img.shape[1] * 2, 3), dtype=np.uint8) * 255
-            denoised_image = draw_bounding_boxes(denoised_image, craft_bboxes, average_height, average_width)
-            
-            denoised_path = os.path.join(page_folder, 'denoised.png')
-            cv2.imwrite(denoised_path, denoised_image)
-        except Exception as e:
-            print(f"Error running CRAFT on page {page_num + 1}: {str(e)}")
-            all_craft_bboxes.append([])
+        
+        page_data.append((chunk_page_num, page_num, page_folder, scaled_img, craft_word_model))
 
     doc.close()
 
-    # Get base filename for dataset mode
-    base_filename = os.path.splitext(os.path.basename(original_pdf_filename))[0] if original_pdf_filename else None
+    # Process pages in parallel using chunk_size
+    all_craft_bboxes = [None] * len(page_data)
+    
+    # Set up multiprocessing
+    mp.set_start_method('spawn', force=True)
+    
+    with mp.Pool(processes=min(chunk_size, len(page_data))) as pool:
+        for chunk_page_num, craft_bboxes in tqdm(
+            pool.imap(process_page_craft, page_data),
+            total=len(page_data),
+            desc='Processing Pages'
+        ):
+            all_craft_bboxes[chunk_page_num] = craft_bboxes
 
+    # Continue with layout parsing
     print("Running layout parsing")
     get_layout(partitions_dir, model, processor, det_model, det_processor, table_model, 
-              table_processor, order_model, order_processor, all_craft_bboxes,
-              input_dir if is_dataset_mode else None,
-              base_filename if is_dataset_mode else None,
-              is_dataset_mode)
+             table_processor, order_model, order_processor, all_craft_bboxes,
+             input_dir,
+             start_page,
+             is_dataset_mode,
+             chunk_size)
 
-    subprocess.run(['node', 'ocr.js', output_txt, str(chunk_num), str(chunk_size)], universal_newlines=True)
+    print("Running OCR")
+    subprocess.run(['node', 'ocr.js', output_txt, str(chunk_num), str(chunk_size), input_dir], 
+                 universal_newlines=True)
 
-    print("Processing completed.")
+    print(f"Chunk {chunk_num} processing completed.")
