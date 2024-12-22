@@ -13,7 +13,7 @@ The only changes that we applied to this file was removing the quotation marks i
 shuf identifiers.txt -o identifiers.txt
 ```
 
-Now, we have a general idea of how documents of a certain type can be obtained for our conversion into a document analysis dataset. With this out of the way, let's discuss how we can install and run the project. As prerequisites, you'll need to be running on Linux, have CUDA>=12.1, and have conda. Let's start with the installation process.
+Now, we have a general idea of how documents of a certain type can be obtained for our conversion into a document analysis dataset. With this out of the way, let's discuss how we can install and run the project. As prerequisites, you'll need to be running Linux with conda and CUDA>=12.1. Let's start with the installation process.
 
 -----
 1. Clone and enter the repository.
