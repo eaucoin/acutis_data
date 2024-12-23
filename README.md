@@ -134,7 +134,7 @@ INPUT_DIR/
 ```
 Ineligible identifiers may show as empty identifier folders.
 
-In each of the document folders, there are pairs of `.boxes` and `.html` files whose titles correspond to each page of the document. The .boxes files contain the layout information for that page of the document. For each page of a document, a set of "layout elements" describe the layout of that page. A layout element is of the form:
+In each of the document folders, there are pairs of `.boxes` and `.html` files whose titles correspond to each page of the document. The `.boxes` files contain the layout information for that page of the document. For each page of a document, a set of "layout elements" describe the layout of that page. A layout element is of the form:
 ```
 [x1, y1, x2, y2, label, box_id, position]
 ```
