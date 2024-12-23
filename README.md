@@ -15,7 +15,7 @@ shuf identifiers.txt -o identifiers.txt
 
 Now, we have a general idea of how documents of a certain type can be obtained for our conversion into a document analysis dataset. With this out of the way, let's discuss how we can install and run the project. As prerequisites, you'll need to be running Linux with conda and CUDA>=12.1. Let's start with the installation process.
 
-——-
+-----
 1. Clone and enter the repository.
 ```cmd
 git clone https://github.com/eaucoin/acutis_data.git
@@ -64,7 +64,7 @@ Last updated: 2024-12-22 15:30:45
 ```
 When a document has been converted, the dashboard is updated to reflect the progress.
 
-——-
+-----
 
 If identifiers.txt contains `N` rows, then the completed dataset will look as follows:
 ```
