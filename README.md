@@ -144,7 +144,7 @@ The `label` entry is a string: it is either `Caption`, `Footnote`, `Formula`, `L
 
 The entries for `box_id` and `position` are unique integers assigned to each box: the entry `box_id` is assigned and used by the script to identify the box, and the entry `position` is the region's place in the reading order of the page, recognized by the reading order model.
 
-The `.html` files contain the contents of the page that was extracted by the entire process. For many use cases, however, markdown is a more useful format. The script `markdown.py` is called by:
+The `.html` files contain the contents of the page that were extracted by the entire process. For many use cases, however, markdown is a more useful format. The script `markdown.py` is called by:
 ```bash
 python markdown.py INPUT_DIR
 ```
