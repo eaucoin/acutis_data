@@ -88,66 +88,55 @@ def process_pdf(input_pdf, output_txt, craft_word_model, model, processor, det_m
     # Ensure necessary folders exist in working directory
     working_dir = os.getcwd()
     ensure_folders_exist()
-
     # Create and clean the working directories for this chunk
     partitions_dir = os.path.join(working_dir, "partitions")
     regionimages_dir = os.path.join(working_dir, "regionimages")
-
     # Clean working directories
     for subfolder in os.listdir(partitions_dir):
         subfolder_path = os.path.join(partitions_dir, subfolder)
         if os.path.isdir(subfolder_path):
             shutil.rmtree(subfolder_path)
-
     for file in os.listdir(regionimages_dir):
         file_path = os.path.join(regionimages_dir, file)
         if os.path.isfile(file_path):
             os.remove(file_path)
-
     import torch.multiprocessing as mp
     from tqdm import tqdm
-
     # Calculate page range for this chunk
     doc = fitz.open(input_pdf)
     start_page = (chunk_num - 1) * chunk_size
     end_page = min(start_page + chunk_size, min(doc.page_count, max_pages))
     pages_in_chunk = range(start_page, end_page)
-    
+
     # Prepare all pages first
     page_data = []
     for chunk_page_num, page_num in enumerate(pages_in_chunk):
         page_folder = os.path.join(partitions_dir, f'{chunk_page_num:04d}')
         create_folder(page_folder)
-
         page = doc.load_page(page_num)
         zoom_factor = 4
         zoom_mat = fitz.Matrix(zoom_factor, zoom_factor)
         zoomed_pix = page.get_pixmap(matrix=zoom_mat)
-
         zoomed_img = cv2.cvtColor(
             np.frombuffer(zoomed_pix.samples, np.uint8).reshape(
                 zoomed_pix.height, zoomed_pix.width, zoomed_pix.n
             ), 
             cv2.COLOR_BGR2RGB
         )
-
         scaled_height = 2048
         scaled_width = int(zoomed_img.shape[1] * (scaled_height / zoomed_img.shape[0]))
         scaled_img = cv2.resize(zoomed_img, (scaled_width, scaled_height), interpolation=cv2.INTER_AREA)
-
         raw_path = os.path.join(page_folder, 'raw.png')
         cv2.imwrite(raw_path, scaled_img)
-        
+
         page_data.append((chunk_page_num, page_num, page_folder, scaled_img, craft_word_model))
-
     doc.close()
-
     # Process pages in parallel using chunk_size
     all_craft_bboxes = [None] * len(page_data)
-    
+
     # Set up multiprocessing
     mp.set_start_method('spawn', force=True)
-    
+
     with mp.Pool(processes=min(chunk_size, len(page_data))) as pool:
         for chunk_page_num, craft_bboxes in tqdm(
             pool.imap(process_page_craft, page_data),
@@ -155,7 +144,6 @@ def process_pdf(input_pdf, output_txt, craft_word_model, model, processor, det_m
             desc='Processing Pages'
         ):
             all_craft_bboxes[chunk_page_num] = craft_bboxes
-
     # Continue with layout parsing
     print("Running layout parsing")
     get_layout(partitions_dir, model, processor, det_model, det_processor, table_model, 
@@ -164,9 +152,7 @@ def process_pdf(input_pdf, output_txt, craft_word_model, model, processor, det_m
              start_page,
              is_dataset_mode,
              chunk_size)
-
     print("Running OCR")
     subprocess.run(['node', 'ocr.js', output_txt, str(chunk_num), str(chunk_size), input_dir], 
                  universal_newlines=True)
-
     print(f"Chunk {chunk_num} processing completed.")
