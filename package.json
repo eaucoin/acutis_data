@@ -1,0 +1,24 @@
+{
+  "name": "googleextraction",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "chrome-aws-lambda": "^10.1.0",
+    "chrome-lens-ocr": "^2.0.1",
+    "cli-progress": "^3.12.0",
+    "he": "^1.2.0",
+    "jsdom": "^24.1.0",
+    "p-queue": "^8.0.1",
+    "pdf-lib": "^1.17.1",
+    "puppeteer": "^22.0.0",
+    "throttle-debounce": "^5.0.0"
+  }
+}
