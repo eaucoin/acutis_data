@@ -11,24 +11,6 @@ import math
 import shutil
 import random
 
-def get_random_start_page(pdf_path, max_pages):
-    """
-    Get random starting page that ensures we can extract maximum possible pages
-    without exceeding document length or max_pages limit.
-    """
-    doc = fitz.open(pdf_path)
-    total_pages = doc.page_count
-    doc.close()
-    
-    if total_pages <= max_pages:
-        # If document is shorter than max_pages, start at page 1
-        return 0
-    else:
-        # Calculate the latest possible starting page that allows max_pages
-        latest_start = total_pages - max_pages
-        # Choose random start between 0 and latest_start
-        return random.randint(0, latest_start)
-
 def ensure_folders_exist():
     folders = ['partitions', 'regionimages']
     for folder in folders:
@@ -125,13 +107,10 @@ def process_pdf(input_pdf, output_txt, craft_word_model, model, processor, det_m
     import torch.multiprocessing as mp
     from tqdm import tqdm
 
-    # Get random starting page
-    start_offset = get_random_start_page(input_pdf, max_pages)
-    
-    # Calculate page range for this chunk with offset
+    # Calculate page range for this chunk
     doc = fitz.open(input_pdf)
-    start_page = start_offset + (chunk_num - 1) * chunk_size
-    end_page = min(start_page + chunk_size, start_offset + max_pages)
+    start_page = (chunk_num - 1) * chunk_size
+    end_page = min(start_page + chunk_size, min(doc.page_count, max_pages))
     pages_in_chunk = range(start_page, end_page)
     
     # Prepare all pages first
