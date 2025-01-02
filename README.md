@@ -149,3 +149,9 @@ The `.html` files contain the contents of the page that were extracted by the en
 python markdown.py INPUT_DIR
 ```
 When completed, `markdown.py` will have created markdown files whose formatting matches the html file; they will be placed with the same title as each `.html` file, in the same folder. 
+
+As the dataset is being created, we may also want to clear up some disk space by compressing the folders labeled "Done" in `identifiers.txt`. This can be accomplished by 
+```bash
+./compress_directory.sh INPUT_DIR
+```
+Here, `INPUT_DIR` is the place where the dataset is currently being made. This script can be used periodically. This allows you to monitor the quality of recently-made data in its uncomressed form and compressing it later after spot-checking.
