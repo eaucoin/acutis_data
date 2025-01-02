@@ -154,4 +154,4 @@ As the dataset is being created, we may also want to clear up some disk space by
 ```bash
 ./compress_directory.sh INPUT_DIR
 ```
-Here, `INPUT_DIR` is the place where the dataset is currently being made. This script can be used periodically. This allows you to monitor the quality of recently-made data in its uncomressed form and compressing it later after spot-checking.
+Here, `INPUT_DIR` is the place where the dataset is currently being made. This script can be used periodically. This allows you to monitor the quality of recently-made data in its uncompressed form, later compressing the folders after spot-checking.
